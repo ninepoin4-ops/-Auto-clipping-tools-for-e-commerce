@@ -1,0 +1,5 @@
+{
+  "name": "Beat CC",
+  "description": "A professional beat-synced video joiner. Auto-sync video cuts to BGM beats, manage subtitles, and export for social media.",
+  "requestFramePermissions": []
+}
