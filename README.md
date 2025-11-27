@@ -4,9 +4,9 @@
   电商自动剪辑工具/视频自动卡点剪辑工具/通过 AI studio构建
 </div>
 
-You can reach the author by email at 15666835265@163.com or on WeChat at ly2336520586—just let them know what brings you.
+You can reach the author by email at 15666835265@163.com or ninepoin4@gmail.com.Or on WeChat at ly2336520586.
 
-可以通过邮箱：15666835265@163.com或者微信：ly2336520586 联系作者，说明来意。
+可以通过邮箱：15666835265@163.com,ninepoin4@gmail.com或者微信：ly2336520586 联系作者，说明来意。
 # Run and deploy your AI Studio app
 
 This contains everything you need to run your app locally.
