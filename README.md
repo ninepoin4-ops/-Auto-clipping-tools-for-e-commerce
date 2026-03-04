@@ -6,6 +6,13 @@
 
 This contains everything you need to run your app locally.
 This software is free to use for personal, non-commercial purposes only. 本软件仅供个人非商业用途使用。
+<<<<<<< HEAD
+=======
+
+Any commercial use (including but not limited to selling the software, using it in a commercial product, or using it for business operations) is strictly prohibited without written permission from the author.
+
+-未经作者书面许可，严禁任何商业用途（包括但不限于销售软件、 在商业产品中使用或用于商业运营）。
+>>>>>>> 6cff402fd68dc324bdc17c5b61f90661d3ee9ccb
 
 Any commercial use (including but not limited to selling the software, using it in a commercial product, or using it for business operations) is strictly prohibited without written permission from the author.
 
