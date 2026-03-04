@@ -7,6 +7,7 @@ export interface VideoAsset {
   duration: number;
   width: number;
   height: number;
+  trimStart: number; // Skip first N seconds (for AI-generated videos with same first frame)
 }
 
 export type AspectRatio = '9:16' | '16:9' | '1:1' | '2:3' | '3:4';
@@ -32,6 +33,7 @@ export interface SubtitleConfig {
 export interface TitleConfig {
   text: string;
   enabled: boolean;
+  lines: number;
   style: {
     fontSize: number;
     color: string;
@@ -48,16 +50,18 @@ export interface BeatConfig {
   mode: 'off' | '2' | '4' | '8' | '12' | '16';
   bpm: number;
   offset: number; // Start offset in seconds
+  skipStart: number; // Skip first N seconds of each video (for AI-generated videos)
 }
 
 export interface ExportConfig {
   ratio: AspectRatio;
   fps: number;
   quality: 'high' | 'standard' | 'low';
-  clipDuration: number; // User preference for fixed length or max length
-  fadeDuration: number; // Transition time
-  originalVolume: number; // 0-1
-  bgmVolume: number; // 0-1
+  clipDuration: number;
+  fadeDuration: number;
+  originalVolume: number;
+  bgmVolume: number;
+  playbackRate: number;
 }
 
 export type Lang = 'zh' | 'en';

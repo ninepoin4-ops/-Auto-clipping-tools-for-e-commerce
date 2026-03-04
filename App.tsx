@@ -4,7 +4,7 @@ import {
   Upload, Music, Play, Video, Settings, 
   Download, Plus, X, ArrowUp, ArrowDown, Type, 
   Clock, Scissors, Loader2, Shuffle, Sparkles, HelpCircle, 
-  Heading, Move, Trash2, Pause
+  Heading, Move, Trash2, Pause, ChevronDown
 } from 'lucide-react';
 import { decodeAudioFile, detectBPM } from './services/audioService';
 import { VideoAsset, BeatConfig, ExportConfig, SubtitleConfig, TitleConfig, Lang } from './types';
@@ -56,13 +56,15 @@ const DICT = {
     useSample: "Use Sample",
     loadingSample: "Loading...",
     manualTitle: "User Manual",
-    manualContent: "This is Beat CC, Stark's specialized video editing tool.\nThis tool automatically synchronizes video transitions to background music beats. Subtitles can also sync to the beat. Transitions are based on musical bars; 4 beats is usually the best choice.\n\nUsage Tips:\n1. BPM is automatically detected from the BGM. Usually you don't need to change it. Increase BPM for faster cuts, decrease for slower.\n2. Smart Subtitles: Paste text, use Enter to split lines. One line per subtitle segment.\n3. Appearance: Settings for subtitles. Size around 100 is commonly used.\n4. Transition Fade: Cross-fade effect between clips. Too high might cause stuttering due to browser rendering pressure. 0.1-0.4s is recommended.\n5. BGM Volume: Adjusts music volume, does not affect beat detection.",
+    manualContent: "This is Beat CC, Stark's specialized video editing tool.\nThis tool automatically synchronizes video transitions to background music beats. Subtitles can also sync to the beat. Transitions are based on musical bars; 4 beats is usually the best choice.\n\nUsage Tips:\n1. BPM is automatically detected from the BGM. Usually you don't need to change it. Increase BPM for faster cuts, decrease for slower.\n2. Smart Subtitles: Paste text, use Enter to split lines. One line per subtitle segment.\n3. Appearance: Settings for subtitles. Size around 100 is commonly used.\n4. Transition Fade: Cross-fade effect between clips. Too high might cause stuttering due to browser rendering pressure. 0.1-0.4s is recommended.\n5. BGM Volume: Adjusts music volume, does not affect beat detection.\n6. Skip Start: Skip the first N seconds of each video. Useful for AI-generated videos that have the same first frame.",
     globalTitle: "Global Title",
     titleText: "Title Text",
     fontFamily: "Font",
     uploadFont: "Upload Font",
     position: "Position",
-    enableTitle: "Enable Title"
+    enableTitle: "Enable Title",
+    skipStart: "Skip Start",
+    skipStartDesc: "Skip first N seconds of each video (for AI-generated)"
   },
   zh: {
     title: "Beat CC",
@@ -109,18 +111,17 @@ const DICT = {
     useSample: "使用示例音频",
     loadingSample: "加载中...",
     manualTitle: "使用手册",
-    manualContent: "这是beat CC。\n该工具会自动根据背景音乐来实现卡点转场，字幕也可以根据背景音乐来实现卡点转场，转场以音乐拍数来定，一般选择4拍即可。如果不想使用卡点转场功能，也可以关闭卡点。\n\n使用提示：\n1. bpm是程序自动识别的背景音乐的每分钟拍数，一般情况下不需要动，如果你想让剪辑加快增大bpm，反之则减少\n2. 智能字幕，以回车换行来实现读取每一句字幕，一行一段字幕\n3. 样式设置是字幕的样式设置，可以选择字体的颜色和字体大小，字体大小100左右较为常用\n4. 转场淡化是视频之间的转场效果，如果过大可能会导致视频卡顿，这是由于浏览器的渲染压力造成的，一般选择0.1-0.5即可\n5. bgm volume即背景音乐的音量大小，不会妨碍识别拍数",
+    manualContent: "这是beat CC。\n该工具会自动根据背景音乐来实现卡点转场，字幕也可以根据背景音乐来实现卡点转场，转场以音乐拍数来定，一般选择4拍即可。如果不想使用卡点转场功能，也可以关闭卡点。\n基础使用手册：上传需要剪辑的视频，选择切分节拍，切分数越小剪辑的单个画面越短，如有额外需求，可以输入大标题和字幕以美化视频\n\n使用提示：\n1. bpm是程序自动识别的背景音乐的每分钟拍数，一般情况下不需要动，如果你想让剪辑加快增大bpm，反之则减少\n2. 智能字幕，以回车换行来实现读取每一句字幕，一行一段字幕\n3. 样式设置是字幕的样式设置，可以选择字体的颜色和字体大小，字体大小100左右较为常用\n4. 转场淡化是视频之间的转场效果，如果过大可能会导致视频卡顿，这是由于浏览器的渲染压力造成的，一般选择0.1-0.5即可\n5. bgm volume即背景音乐的音量大小，不会妨碍识别拍数\n6. 跳过开头：跳过每个视频的前N秒，适用于AI图生视频（第一帧相同的情况）",
     globalTitle: "全局大标题",
     titleText: "标题内容",
     fontFamily: "字体",
     uploadFont: "上传字体文件",
     position: "位置调整",
-    enableTitle: "启用大标题"
+    enableTitle: "启用大标题",
+    skipStart: "跳过开头",
+    skipStartDesc: "跳过每个视频的前N秒（适用于AI生成视频）"
   }
 };
-
-// Use a known CORS-friendly raw file from GitHub to avoid fetch errors
-const SAMPLE_AUDIO_URL = "https://raw.githubusercontent.com/PokeAPI/cries/main/cries/pokemon/latest/1.ogg"; 
 
 const DEFAULT_FONTS = [
   'Arial', 
@@ -130,16 +131,25 @@ const DEFAULT_FONTS = [
   'Courier New', 
   'Impact', 
   'Georgia',
-  'Microsoft YaHei', // 微软雅黑
+  '微软雅黑', // 微软雅黑
   '黑体', // 黑体
-  'SimSun', // 宋体
-  'PingFang SC', // 苹方 (Mac)
-  'Noto Sans SC', // 思源黑体
+  ' 宋体', // 宋体
+  '苹方 (Mac)', // 苹方 (Mac)
+  '思源黑体', // 思源黑体
 ];
 
 const App: React.FC = () => {
   const [lang, setLang] = useState<Lang>('zh');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const t = DICT[lang];
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(t => t === 'light' ? 'dark' : 'light');
+  };
 
   // --- Assets ---
   const [videos, setVideos] = useState<VideoAsset[]>([]);
@@ -148,17 +158,19 @@ const App: React.FC = () => {
   const [availableFonts, setAvailableFonts] = useState<string[]>(DEFAULT_FONTS);
 
   // --- Settings ---
-  const [beatConfig, setBeatConfig] = useState<BeatConfig>({ mode: '4', bpm: 120, offset: 0 });
+  const [beatConfig, setBeatConfig] = useState<BeatConfig>({ mode: '4', bpm: 120, offset: 0, skipStart: 0 });
   const [isShuffle, setIsShuffle] = useState(true);
+  const [isTitleSubtitleOpen, setIsTitleSubtitleOpen] = useState(false);
   
   const [exportConfig, setExportConfig] = useState<ExportConfig>({
     ratio: '9:16',
     fps: 30,
     quality: 'high',
     clipDuration: 3, 
-    fadeDuration: 0.2, 
+    fadeDuration: 0.4, 
     originalVolume: 0,
     bgmVolume: 1,
+    playbackRate: 1,
   });
 
   const [subConfig, setSubConfig] = useState<SubtitleConfig>({
@@ -180,6 +192,7 @@ const App: React.FC = () => {
   const [titleConfig, setTitleConfig] = useState<TitleConfig>({
     text: '',
     enabled: true,
+    lines: 1,
     style: {
       fontSize: 120,
       color: '#ffffff',
@@ -195,6 +208,8 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewBlob, setPreviewBlob] = useState<Blob | null>(null);
+  const [isConverting, setIsConverting] = useState(false);
   const [isLoadingSample, setIsLoadingSample] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   
@@ -239,11 +254,77 @@ const App: React.FC = () => {
              URL.revokeObjectURL(url);
          };
      }
-  }, [bgmFile]);
+   }, [bgmFile]);
 
-  // --- Real-time Preview Effect ---
+   // Update all videos' trimStart when global skipStart changes
+   useEffect(() => {
+       if (videos.length === 0) return;
+       
+       // Only update videos that have the default or previous skipStart value
+       // This prevents overwriting individually set values
+       const newVideos = videos.map(v => ({
+           ...v,
+           trimStart: beatConfig.skipStart
+       }));
+       
+       // Update thumbnails for all videos
+       newVideos.forEach((video, index) => {
+           const videoEl = document.createElement('video');
+           videoEl.src = video.objectUrl;
+           videoEl.preload = 'metadata';
+           
+           videoEl.onloadedmetadata = () => {
+               const thumbnailTime = Math.max(0.5, video.trimStart + 0.5);
+               videoEl.currentTime = Math.min(thumbnailTime, videoEl.duration - 0.1);
+           };
+           
+           videoEl.onseeked = () => {
+               const MAX_SIZE = 320;
+               let tw = videoEl.videoWidth;
+               let th = videoEl.videoHeight;
+               const ratio = tw / th;
+               
+               if (tw > MAX_SIZE) {
+                   tw = MAX_SIZE;
+                   th = tw / ratio;
+               }
+               if (th > MAX_SIZE) {
+                   th = MAX_SIZE;
+                   tw = th * ratio;
+               }
+
+               const cvs = document.createElement('canvas');
+               cvs.width = tw;
+               cvs.height = th;
+               cvs.getContext('2d')?.drawImage(videoEl, 0, 0, cvs.width, cvs.height);
+               
+               setVideos(prev => {
+                   const updated = [...prev];
+                   if (updated[index]) {
+                       updated[index] = { ...updated[index], thumbnail: cvs.toDataURL() };
+                   }
+                   return updated;
+               });
+               
+               videoEl.remove();
+           };
+           
+           videoEl.onerror = () => {
+               videoEl.remove();
+           };
+       });
+       
+       // Update trimStart values
+       setVideos(prev => prev.map(v => ({ ...v, trimStart: beatConfig.skipStart })));
+   }, [beatConfig.skipStart]);
+
+   // --- Real-time Preview Effect ---
   useEffect(() => {
-    if (previewUrl) setPreviewUrl(null);
+    if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+    }
+    if (previewBlob) setPreviewBlob(null);
 
     const canvas = previewCanvasRef.current;
     if (!canvas) return;
@@ -302,11 +383,22 @@ const App: React.FC = () => {
              if (titleConfig.style.strokeWidth > 0) {
                  ctx.strokeStyle = titleConfig.style.strokeColor;
                  ctx.lineWidth = titleConfig.style.strokeWidth;
-                 ctx.strokeText(titleConfig.text, x, y);
              }
              
              ctx.fillStyle = titleConfig.style.color;
-             ctx.fillText(titleConfig.text, x, y);
+             
+             const lines = titleConfig.text.split('\n');
+             const lineHeight = titleConfig.style.fontSize * 1.2;
+             const totalHeight = lines.length * lineHeight;
+             const startY = y - totalHeight / 2 + lineHeight / 2;
+             
+             lines.forEach((line, i) => {
+                 const lineY = startY + i * lineHeight;
+                 if (titleConfig.style.strokeWidth > 0) {
+                     ctx.strokeText(line, x, lineY);
+                 }
+                 ctx.fillText(line, x, lineY);
+             });
              
              ctx.strokeStyle = 'rgba(255,255,255,0.5)';
              ctx.lineWidth = 2;
@@ -342,7 +434,9 @@ const App: React.FC = () => {
         
         await new Promise((resolve) => {
           video.onloadedmetadata = () => {
-            video.currentTime = 1; 
+            // Use skipStart for thumbnail to show the actual starting frame
+            const thumbnailTime = Math.max(1, beatConfig.skipStart + 0.5);
+            video.currentTime = thumbnailTime; 
           };
           video.onseeked = () => {
             // FIX: Calculate proper dimensions to preserve aspect ratio
@@ -371,7 +465,8 @@ const App: React.FC = () => {
               objectUrl, // Store persistent URL
               duration: video.duration,
               width: video.videoWidth,
-              height: video.videoHeight
+              height: video.videoHeight,
+              trimStart: beatConfig.skipStart // Apply skip start setting
             });
             // Do NOT revoke objectUrl here, we need it for playback
             video.remove();
@@ -394,6 +489,54 @@ const App: React.FC = () => {
     newVideos[index] = newVideos[index + direction];
     newVideos[index + direction] = temp;
     setVideos(newVideos);
+  };
+
+  // Update thumbnail when trimStart changes
+  const updateVideoThumbnail = async (index: number, trimStart: number) => {
+    const video = videos[index];
+    if (!video) return;
+    
+    const videoEl = document.createElement('video');
+    videoEl.src = video.objectUrl;
+    videoEl.preload = 'metadata';
+    
+    await new Promise((resolve) => {
+      videoEl.onloadedmetadata = () => {
+        const thumbnailTime = Math.max(0.5, trimStart + 0.5);
+        videoEl.currentTime = Math.min(thumbnailTime, videoEl.duration - 0.1);
+      };
+      videoEl.onseeked = () => {
+        const MAX_SIZE = 320;
+        let tw = videoEl.videoWidth;
+        let th = videoEl.videoHeight;
+        const ratio = tw / th;
+        
+        if (tw > MAX_SIZE) {
+            tw = MAX_SIZE;
+            th = tw / ratio;
+        }
+        if (th > MAX_SIZE) {
+            th = MAX_SIZE;
+            tw = th * ratio;
+        }
+
+        const cvs = document.createElement('canvas');
+        cvs.width = tw;
+        cvs.height = th;
+        cvs.getContext('2d')?.drawImage(videoEl, 0, 0, cvs.width, cvs.height);
+        
+        setVideos(prev => prev.map((v, i) => 
+          i === index ? { ...v, thumbnail: cvs.toDataURL(), trimStart } : v
+        ));
+        
+        videoEl.remove();
+        resolve(true);
+      };
+      videoEl.onerror = () => {
+        videoEl.remove();
+        resolve(true);
+      };
+    });
   };
 
   const removeVideo = (index: number) => {
@@ -480,9 +623,10 @@ const App: React.FC = () => {
   const handleUseSampleBgm = async () => {
       setIsLoadingSample(true);
       try {
-          const response = await fetch(SAMPLE_AUDIO_URL);
+          const response = await fetch("/TEST.mp3");
+          if (!response.ok) throw new Error("File not found");
           const blob = await response.blob();
-          const file = new File([blob], "Sample_Beat.mp3", { type: "audio/mp3" });
+          const file = new File([blob], "TEST.mp3", { type: "audio/mp3" });
           
           setBgmFile(file);
           const buffer = await decodeAudioFile(file);
@@ -501,7 +645,9 @@ const App: React.FC = () => {
     if (videos.length === 0) return;
     setIsProcessing(true);
     setProgress(0);
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
     setPreviewUrl(null);
+    setPreviewBlob(null);
 
     const canvas = canvasRef.current;
     if (!canvas) {
@@ -543,7 +689,9 @@ const App: React.FC = () => {
         // Smart Shuffle Logic
         if (isShuffle) {
             videos.forEach(v => {
-                let cursor = 0;
+                const trimStart = v.trimStart || 0;
+                let cursor = trimStart; // Start from trimStart to skip intro
+                // Check remaining duration after trimStart
                 while (cursor + baseClipDuration <= v.duration) {
                     sourceSegments.push({
                         video: v,
@@ -558,7 +706,18 @@ const App: React.FC = () => {
                 [sourceSegments[i], sourceSegments[j]] = [sourceSegments[j], sourceSegments[i]];
             }
         } else {
-            sourceSegments = videos.map(v => ({ video: v, srcStart: 0 }));
+            // Non-shuffle mode: sequential playback from each video's trimStart
+            videos.forEach(v => {
+                const trimStart = v.trimStart || 0;
+                let cursor = trimStart;
+                while (cursor + baseClipDuration <= v.duration) {
+                    sourceSegments.push({
+                        video: v,
+                        srcStart: cursor
+                    });
+                    cursor += baseClipDuration;
+                }
+            });
         }
 
         let currentGlobalTime = 0;
@@ -595,18 +754,37 @@ const App: React.FC = () => {
             src.start(0);
         }
 
+        if (!('MediaRecorder' in window)) {
+            alert(lang === 'zh' ? '当前浏览器不支持导出（缺少 MediaRecorder）' : 'Export not supported (MediaRecorder missing)');
+            setIsProcessing(false);
+            return;
+        }
+        if (!('captureStream' in canvas)) {
+            alert(lang === 'zh' ? '当前浏览器不支持导出（缺少 canvas.captureStream）' : 'Export not supported (canvas.captureStream missing)');
+            setIsProcessing(false);
+            return;
+        }
+
         // --- Recording Setup ---
-        const stream = canvas.captureStream(exportConfig.fps);
+        const stream = (canvas as any).captureStream(exportConfig.fps) as MediaStream;
         const combinedTracks = [...stream.getVideoTracks(), ...dest.stream.getAudioTracks()];
         const mixedStream = new MediaStream(combinedTracks);
         
+        const hasBgmAudio = Boolean(audioBuffer && exportConfig.bgmVolume > 0);
         const getSupportedMimeType = () => {
-            const types = [
-                'video/mp4; codecs="avc1.42E01E, mp4a.40.2"', 
-                'video/mp4; codecs="avc1.4d401e, mp4a.40.2"', 
-                'video/mp4; codecs="avc1.64001e, mp4a.40.2"', 
-                'video/mp4',
+            const types = hasBgmAudio ? [
+                'video/webm; codecs=vp9,opus',
+                'video/webm; codecs=vp8,opus',
                 'video/webm; codecs=vp9',
+                'video/webm; codecs=vp8',
+                'video/webm',
+                'video/mp4; codecs=avc1',
+                'video/mp4'
+            ] : [
+                'video/mp4; codecs=avc1',
+                'video/mp4',
+                'video/webm; codecs=vp9,opus',
+                'video/webm; codecs=vp8,opus',
                 'video/webm'
             ];
             for (const t of types) {
@@ -614,17 +792,30 @@ const App: React.FC = () => {
             }
             return 'video/webm';
         };
-        const mimeType = getSupportedMimeType();
+        const preferredMimeType = getSupportedMimeType();
 
-        // Optimization: Reduced bitrate to 8Mbps for better stability
-        const recorder = new MediaRecorder(mixedStream, {
-            mimeType,
-            videoBitsPerSecond: 8000000 
-        });
+        const createRecorder = () => {
+            const candidates: Array<MediaRecorderOptions> = [
+                { mimeType: preferredMimeType, videoBitsPerSecond: 8000000 },
+                { mimeType: preferredMimeType },
+                { videoBitsPerSecond: 8000000 },
+                {}
+            ];
+            let lastError: unknown = null;
+            for (const opts of candidates) {
+                try {
+                    return new MediaRecorder(mixedStream, opts);
+                } catch (e) {
+                    lastError = e;
+                }
+            }
+            throw lastError ?? new Error('Failed to create MediaRecorder');
+        };
+
+        const recorder = createRecorder();
 
         const chunks: Blob[] = [];
         recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-        recorder.start();
 
         // --- Video Player Setup ---
         const playerA = document.createElement('video');
@@ -724,11 +915,22 @@ const App: React.FC = () => {
            if (titleConfig.style.strokeWidth > 0) {
                ctx.strokeStyle = titleConfig.style.strokeColor;
                ctx.lineWidth = titleConfig.style.strokeWidth;
-               ctx.strokeText(titleConfig.text, x, y);
            }
            
            ctx.fillStyle = titleConfig.style.color;
-           ctx.fillText(titleConfig.text, x, y);
+           
+           const lines = titleConfig.text.split('\n');
+           const lineHeight = titleConfig.style.fontSize * 1.2;
+           const totalHeight = lines.length * lineHeight;
+           const startY = y - totalHeight / 2 + lineHeight / 2;
+           
+           lines.forEach((line, i) => {
+               const lineY = startY + i * lineHeight;
+               if (titleConfig.style.strokeWidth > 0) {
+                   ctx.strokeText(line, x, lineY);
+               }
+               ctx.fillText(line, x, lineY);
+           });
            
            ctx.restore();
         };
@@ -754,18 +956,21 @@ const App: React.FC = () => {
                 }
                 
                 const onCanPlay = () => {
+                    p.playbackRate = exportConfig.playbackRate;
                     p.removeEventListener('canplay', onCanPlay);
                     resolve();
                 };
                 
                 // Safety timeout for seek
                 const timeout = setTimeout(() => {
+                    p.playbackRate = exportConfig.playbackRate;
                     p.removeEventListener('canplay', onCanPlay);
                     resolve();
                 }, 3000);
 
                 if (p.readyState >= 3) {
                     clearTimeout(timeout);
+                    p.playbackRate = exportConfig.playbackRate;
                     resolve();
                 } else {
                     p.addEventListener('canplay', () => {
@@ -779,26 +984,101 @@ const App: React.FC = () => {
         // Init first clip
         await preparePlayer(playerA, timelineClips[0].videoAsset, timelineClips[0].srcStart);
 
-        const loop = async () => {
-            const now = performance.now();
-            const timeElapsed = (now - startTime) / 1000; 
+        await new Promise<void>((resolve) => {
+            let isFinalizing = false;
+            let stopTimeoutId: number | null = null;
+            let forceFinalizeId: number | null = null;
 
-            if (timeElapsed >= totalDuration) {
-                recorder.stop();
+            const cleanup = () => {
                 playerA.pause();
                 playerB.pause();
-                // cleanup players
                 playerA.src = '';
                 playerB.src = '';
-                actx.close();
+                try { mixedStream.getTracks().forEach(t => t.stop()); } catch {}
+                try { void actx.close(); } catch {}
+            };
+
+            const getBlobFromChunks = () => {
+                const type = (recorder.mimeType || preferredMimeType || 'video/webm').split(';')[0];
+                return new Blob(chunks, { type });
+            };
+
+            const finalize = async (opts: { blob?: Blob; error?: unknown; allowChunkFallback?: boolean }) => {
+                if (isFinalizing) return;
+                isFinalizing = true;
+                if (stopTimeoutId !== null) window.clearTimeout(stopTimeoutId);
+                if (forceFinalizeId !== null) window.clearTimeout(forceFinalizeId);
+
+                const blobToUse = opts.blob ?? (opts.allowChunkFallback ? getBlobFromChunks() : undefined);
+                if (blobToUse && blobToUse.size > 0) {
+                    setPreviewBlob(blobToUse);
+                    setPreviewUrl(URL.createObjectURL(blobToUse));
+                    setProgress(100);
+                    setIsProcessing(false);
+                    resolve();
+                    cleanup();
+                    return;
+                }
+
+                setIsProcessing(false);
+                if (opts.error) {
+                    console.error("Generation failed", opts.error);
+                }
+                alert(lang === 'zh' ? '生成失败，请检查浏览器兼容性' : 'Generation failed');
+                resolve();
+                cleanup();
+            };
+
+            recorder.onerror = (e: any) => {
+                void finalize({ error: e?.error ?? e, allowChunkFallback: true });
+            };
+
+            recorder.onstop = () => {
+                const blob = getBlobFromChunks();
+                void finalize({ blob });
+            };
+
+            const safeStop = () => {
+                if (isFinalizing) return;
+                try { (recorder as any).requestData?.(); } catch {}
+                setProgress(100);
+                try {
+                    if (recorder.state !== 'inactive') recorder.stop();
+                } catch (e) {
+                    void finalize({ error: e });
+                    return;
+                }
+                forceFinalizeId = window.setTimeout(() => {
+                    void finalize({ allowChunkFallback: true });
+                }, 2000);
+                stopTimeoutId = window.setTimeout(() => {
+                    void finalize({ error: new Error('MediaRecorder stop timeout'), allowChunkFallback: true });
+                }, 5000);
+            };
+
+            try {
+                recorder.start(1000);
+            } catch (e) {
+                void finalize({ error: e });
                 return;
             }
 
-            setProgress((timeElapsed / totalDuration) * 100);
+            const loop = async () => {
+                if (isFinalizing) return;
+                const now = performance.now();
+                const timeElapsed = (now - startTime) / 1000; 
+
+                if (timeElapsed >= totalDuration) {
+                    safeStop();
+                    return;
+                }
+
+                setProgress(Math.min(99, (timeElapsed / totalDuration) * 100));
 
             const activeIdx = timelineClips.findIndex(c => timeElapsed >= c.startTime && timeElapsed < c.endTime);
+            const clip = activeIdx !== -1 ? timelineClips[activeIdx] : null;
             
-            if (activeIdx !== -1) {
+            if (clip) {
                 if (currentClipIdx !== activeIdx) {
                     currentClipIdx = activeIdx;
                     const p = getPlayer(activeIdx);
@@ -811,7 +1091,6 @@ const App: React.FC = () => {
                     activePlayer.play().catch(() => {});
                 }
 
-                const clip = timelineClips[activeIdx];
                 const timeUntilEnd = clip.endTime - timeElapsed;
                 const isLastClip = activeIdx === timelineClips.length - 1;
 
@@ -838,8 +1117,7 @@ const App: React.FC = () => {
             ctx.fillStyle = 'black';
             ctx.fillRect(0, 0, width, height);
 
-            if (activeIdx !== -1) {
-                const clip = timelineClips[activeIdx];
+            if (clip) {
                 const p = getPlayer(activeIdx);
                 const timeUntilEnd = clip.endTime - timeElapsed;
                 
@@ -862,16 +1140,12 @@ const App: React.FC = () => {
             
             drawSubtitles(timeElapsed);
             drawGlobalTitle();
-            requestAnimationFrame(loop);
-        };
 
-        recorder.onstop = () => {
-            const blob = new Blob(chunks, { type: mimeType.split(';')[0] });
-            setPreviewUrl(URL.createObjectURL(blob));
-            setIsProcessing(false);
-        };
+                requestAnimationFrame(loop);
+            };
 
-        loop();
+            void loop();
+        });
 
     } catch (e) {
         console.error("Generation failed", e);
@@ -880,9 +1154,51 @@ const App: React.FC = () => {
     }
   };
 
+  const downloadBlob = (blob: Blob, filename: string) => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+
+  const handleDownloadMp4 = async () => {
+    if (!previewBlob) return;
+    if (isConverting) return;
+
+    if (window.location.protocol === 'file:') {
+      alert(lang === 'zh' ? '单文件模式无法转码 MP4，请用 EXE/本地服务模式导出 MP4' : 'MP4 conversion requires local server mode');
+      return;
+    }
+
+    setIsConverting(true);
+    try {
+      const res = await fetch('/api/convert-mp4', {
+        method: 'POST',
+        headers: { 'Content-Type': previewBlob.type || 'application/octet-stream' },
+        body: previewBlob
+      });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => '');
+        throw new Error(msg || `HTTP ${res.status}`);
+      }
+      const mp4 = await res.blob();
+      downloadBlob(mp4, 'BeatCC.mp4');
+    } catch (e) {
+      console.error(e);
+      alert(lang === 'zh' ? 'MP4 转码失败，将下载 WebM' : 'MP4 conversion failed, downloading WebM');
+      downloadBlob(previewBlob, 'BeatCC.webm');
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
   return (
-    <div className={`min-h-screen bg-zinc-950 text-zinc-200 font-sans flex flex-col ${lang === 'zh' ? 'font-sans-sc' : ''}`}>
-      {/* Optimization: Use fixed off-screen canvas instead of hidden to prevent rendering freeze */}
+    <div className={`h-screen bg-zinc-950 text-zinc-200 font-sans flex flex-col overflow-hidden ${lang === 'zh' ? 'font-sans-sc' : ''}`}>
+      <div className="noise-overlay" />
       <canvas 
           ref={canvasRef} 
           className="fixed top-0 left-0 -z-50 opacity-0 pointer-events-none" 
@@ -890,16 +1206,16 @@ const App: React.FC = () => {
 
       {showHelp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-            <div className="bg-zinc-900 border border-zinc-700 rounded-xl max-w-lg w-full shadow-2xl flex flex-col max-h-[80vh]">
-                <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
-                    <h3 className="font-bold text-lg text-white">{t.manualTitle}</h3>
-                    <button onClick={() => setShowHelp(false)} className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white"><X className="w-5 h-5" /></button>
+            <div className="bg-zinc-900 border border-zinc-700 rounded-lg max-w-lg w-full shadow-2xl flex flex-col max-h-[80vh]">
+                <div className="p-3 border-b border-zinc-800 flex justify-between items-center">
+                    <h3 className="font-bold text-sm text-white">{t.manualTitle}</h3>
+                    <button onClick={() => setShowHelp(false)} className="p-1 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white"><X className="w-4 h-4" /></button>
                 </div>
-                <div className="p-6 overflow-y-auto text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">
+                <div className="p-4 overflow-y-auto text-zinc-400 text-xs leading-relaxed whitespace-pre-wrap">
                     {t.manualContent}
                 </div>
-                <div className="p-4 border-t border-zinc-800 flex justify-end">
-                    <button onClick={() => setShowHelp(false)} className="px-4 py-2 bg-white text-black rounded font-medium hover:bg-zinc-200 text-sm transition-colors">
+                <div className="p-3 border-t border-zinc-800 flex justify-end">
+                    <button onClick={() => setShowHelp(false)} className="px-3 py-1.5 bg-white text-black rounded font-medium hover:bg-zinc-200 text-xs transition-colors">
                         OK
                     </button>
                 </div>
@@ -907,38 +1223,35 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <header className="h-16 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between px-6 backdrop-blur">
+      <header className="h-12 border-b border-zinc-800 bg-zinc-900/80 flex items-center justify-between px-4 backdrop-blur">
         <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Scissors className="text-white w-5 h-5" />
+            <div className="w-7 h-7 bg-gradient-to-br from-pink-500 to-purple-600 rounded flex items-center justify-center">
+                <Scissors className="text-white w-4 h-4" />
             </div>
             <div>
-                <h1 className="text-lg font-bold leading-none tracking-tight">{t.title}</h1>
-                <span className="text-xs text-zinc-500 font-medium">{t.subtitle}</span>
+                <h1 className="text-base font-bold leading-none">{t.title}</h1>
             </div>
         </div>
-        <div className="flex items-center gap-4">
-            <button onClick={() => setShowHelp(true)} className="p-2 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors">
-                <HelpCircle className="w-5 h-5" />
+        <div className="flex items-center gap-1.5">
+            <button onClick={() => setShowHelp(true)} className="p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors">
+                <HelpCircle className="w-4 h-4" />
             </button>
-            <button onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} className="text-xs font-mono border border-zinc-700 rounded px-2 py-1 hover:bg-zinc-800 transition-colors">
-                {lang === 'en' ? 'EN / 中文' : '中文 / EN'}
+            <button onClick={toggleTheme} className="p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white transition-colors text-sm" title={theme === 'light' ? 'Switch to Dark' : 'Switch to Light'}>
+                {theme === 'light' ? '🌙' : '☀️'}
             </button>
-            <button disabled={isProcessing} onClick={generateVideo} className="bg-white text-black hover:bg-zinc-200 px-6 py-2 rounded-full font-bold text-sm flex items-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-                {isProcessing ? <><Loader2 className="animate-spin w-4 h-4" /> {Math.round(progress)}%</> : <><Play className="w-4 h-4 fill-current" /> {t.generate}</>}
+            <button onClick={() => setLang(l => l === 'en' ? 'zh' : 'en')} className="text-xs font-mono border border-zinc-700 rounded px-1.5 py-0.5 hover:bg-zinc-800 transition-colors">
+                {lang === 'en' ? 'EN' : '中文'}
+            </button>
+            <button disabled={isProcessing} onClick={generateVideo} className="ml-2 bg-white text-black hover:bg-zinc-200 px-4 py-1.5 rounded-full font-bold text-sm flex items-center gap-1.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                {isProcessing ? <><Loader2 className="animate-spin w-3.5 h-3.5" /> {Math.floor(progress)}%</> : <><Play className="w-3.5 h-3.5" /> {t.generate}</>}
             </button>
         </div>
       </header>
 
       <main className="flex-1 overflow-hidden flex">
         
-        <div className="w-80 flex-shrink-0 border-r border-zinc-800 bg-zinc-900/30 flex flex-col">
-            <div className="p-4 border-b border-zinc-800 flex justify-between items-center">
-                <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">{t.videos}</h2>
-                {/* Clear All Button Removed from here */}
-            </div>
-
-            <div className="px-4 pb-4 border-b border-zinc-800">
+        <div className="w-72 flex-shrink-0 border-r border-zinc-800 bg-zinc-900/50 flex flex-col">
+            <div className="p-3 border-b border-zinc-800">
                 <div className="relative group">
                     <input 
                         ref={videoInputRef}
@@ -948,62 +1261,69 @@ const App: React.FC = () => {
                         className="absolute inset-0 opacity-0 cursor-pointer z-10" 
                         onChange={handleVideoUpload} 
                     />
-                    <div className="border border-dashed border-zinc-700 rounded-lg p-6 flex flex-col items-center justify-center gap-2 text-zinc-400 group-hover:border-zinc-500 group-hover:bg-zinc-800/50 transition-all">
-                        <Plus className="w-6 h-6" />
-                        <span className="text-xs">{t.importVideos}</span>
+                    <div className="border border-dashed border-zinc-700 rounded p-3 flex items-center justify-center gap-2 text-zinc-400 group-hover:border-zinc-500 group-hover:bg-zinc-800/50 transition-all text-xs">
+                        <Plus className="w-4 h-4" />
+                        <span>{t.importVideos}</span>
                     </div>
                 </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2 space-y-2">
+            <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
                 {videos.map((v, i) => (
-                    <div key={v.id} className="bg-zinc-800/50 rounded p-2 flex gap-3 group relative hover:bg-zinc-800 transition-colors">
-                        <img src={v.thumbnail} className="w-16 h-16 object-cover rounded bg-black" />
-                        <div className="flex-1 min-w-0 flex flex-col justify-center">
-                            <p className="text-sm font-medium truncate text-zinc-300">{v.file.name}</p>
-                            <p className="text-xs text-zinc-500">{Math.round(v.duration)}s • {v.width}x{v.height}</p>
+                    <div key={v.id} className="flex gap-2 p-1.5 rounded bg-zinc-800/30 hover:bg-zinc-800 transition-colors group items-center">
+                        <img src={v.thumbnail} className="w-10 h-12 object-cover rounded bg-zinc-900 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-xs text-zinc-300 truncate">{v.file.name}</p>
+                            <div className="flex items-center gap-1 text-[10px] text-zinc-500">
+                                <span>{Math.round(v.duration)}s</span>
+                                <span>{v.width}x{v.height}</span>
+                            </div>
                         </div>
-                        <div className="absolute right-2 top-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={() => moveVideo(i, -1)} className="p-1 hover:bg-zinc-700 rounded"><ArrowUp className="w-3 h-3" /></button>
-                            <button onClick={() => moveVideo(i, 1)} className="p-1 hover:bg-zinc-700 rounded"><ArrowDown className="w-3 h-3" /></button>
-                            <button onClick={() => removeVideo(i)} className="p-1 hover:bg-red-900/50 text-red-400 rounded"><X className="w-3 h-3" /></button>
+                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => moveVideo(i, -1)} className="p-1 hover:bg-zinc-700 rounded text-zinc-500 hover:text-white"><ArrowUp className="w-3 h-3" /></button>
+                            <button onClick={() => moveVideo(i, 1)} className="p-1 hover:bg-zinc-700 rounded text-zinc-500 hover:text-white"><ArrowDown className="w-3 h-3" /></button>
+                            <button onClick={() => removeVideo(i)} className="p-1 hover:bg-red-900/50 rounded text-zinc-500 hover:text-red-400"><X className="w-3 h-3" /></button>
                         </div>
                     </div>
                 ))}
                 {videos.length === 0 && (
-                    <div className="text-center py-10 text-zinc-600 text-sm">{t.dragDrop}</div>
+                    <div className="py-8 px-4 text-center">
+                        <Video className="w-8 h-8 opacity-30 mx-auto mb-2" />
+                        <span className="text-xs text-zinc-500">{t.dragDrop}</span>
+                    </div>
                 )}
             </div>
 
-            <div className="p-4 border-t border-zinc-800 bg-zinc-900">
+            <div className="p-3 border-t border-zinc-800">
                 {videos.length > 0 && (
                     <button 
                         type="button"
                         onClick={handleClearAll}
-                        className="w-full mb-4 flex items-center justify-center gap-2 text-xs font-bold text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-900/30 px-3 py-2 rounded transition-colors"
+                        className="w-full mb-2 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded bg-zinc-800/50 hover:bg-red-900/30 text-zinc-400 hover:text-red-400 text-xs transition-colors"
                     >
                         <Trash2 className="w-3 h-3" /> {t.clearAll}
                     </button>
                 )}
 
-                <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">{t.bgm}</h2>
                 <div className="flex gap-2">
-                    <div className="relative flex-1">
-                        <input type="file" accept="audio/*" className="absolute inset-0 opacity-0 cursor-pointer z-10" onChange={handleBgmUpload} />
-                        <div className={`border rounded-xl p-6 flex items-center gap-4 ${bgmFile ? 'border-purple-500/50 bg-purple-500/10' : 'border-zinc-700 hover:bg-zinc-800'}`}>
-                            <Music className={`w-8 h-8 ${bgmFile ? 'text-purple-400' : 'text-zinc-500'}`} />
+                    <div className="relative flex-1 bg-zinc-800/50 rounded border border-zinc-700 hover:border-zinc-600 transition-colors group overflow-hidden">
+                        <input type="file" accept="audio/*" onChange={handleBgmUpload} className="absolute inset-0 opacity-0 cursor-pointer z-10" />
+                        <div className="p-2 flex items-center gap-2">
+                            <div className="w-8 h-8 rounded bg-zinc-700 flex items-center justify-center flex-shrink-0">
+                                <Music className="w-4 h-4 text-zinc-400" />
+                            </div>
                             <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium truncate">{bgmFile ? bgmFile.name : t.importBGM}</div>
-                                {bgmFile && <div className="text-xs text-purple-400">{beatConfig.bpm} BPM</div>}
+                                <div className="text-xs text-zinc-300 truncate">{bgmFile ? bgmFile.name : t.importBGM}</div>
+                                {bgmFile && <div className="text-[10px] text-pink-400">{beatConfig.bpm} BPM</div>}
                             </div>
                             {bgmFile && (
-                                <button 
+                               <button 
                                    type="button"
-                                   onClick={toggleBgmPreview}
-                                   className="z-20 p-2 rounded-full hover:bg-white/10 text-white transition-colors"
-                                >
-                                   {isBgmPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
-                                </button>
+                                   onClick={(e) => { e.stopPropagation(); toggleBgmPreview(); }}
+                                   className="p-1.5 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-colors"
+                               >
+                                   {isBgmPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                               </button>
                             )}
                         </div>
                     </div>
@@ -1011,60 +1331,71 @@ const App: React.FC = () => {
                         <button 
                             onClick={handleUseSampleBgm} 
                             disabled={isLoadingSample}
-                            className="w-16 border border-zinc-700 rounded-xl flex items-center justify-center hover:bg-zinc-800 hover:text-purple-400 text-zinc-500 transition-colors"
+                            className="p-2 bg-zinc-800/50 hover:bg-zinc-800 rounded border border-zinc-700 hover:border-zinc-600 text-zinc-400 hover:text-pink-400 transition-colors disabled:opacity-50"
                             title={t.useSample}
                         >
-                            {isLoadingSample ? <Loader2 className="w-6 h-6 animate-spin" /> : <Sparkles className="w-6 h-6" />}
+                            {isLoadingSample ? <Loader2 className="animate-spin w-4 h-4" /> : <Sparkles className="w-4 h-4" />}
                         </button>
                     )}
                 </div>
             </div>
         </div>
-
-        <div className="flex-1 bg-black flex items-center justify-center p-8 relative">
+ 
+         <div className="flex-1 bg-zinc-950 p-6 flex flex-col items-center justify-center overflow-hidden relative">
             <div 
-                className="relative shadow-2xl overflow-hidden bg-zinc-900 border border-zinc-800"
+                className="relative bg-black rounded-lg overflow-hidden shadow-2xl"
                 style={{ 
                     aspectRatio: exportConfig.ratio === '9:16' ? '9/16' : exportConfig.ratio === '16:9' ? '16/9' : exportConfig.ratio === '1:1' ? '1/1' : exportConfig.ratio === '2:3' ? '2/3' : '3/4',
                     height: '100%',
-                    maxHeight: '80vh',
+                    maxHeight: '75vh',
                     width: 'auto'
                 }}
             >
-                {/* Live Preview Canvas */}
                 <canvas 
                   ref={previewCanvasRef} 
-                  className={`w-full h-full object-contain ${previewUrl ? 'hidden' : 'block'}`} 
+                  className="w-full h-full object-contain"
                 />
 
                 {previewUrl ? (
-                    <video src={previewUrl} controls className="w-full h-full object-contain absolute inset-0 z-10 bg-black" loop autoPlay />
+                    <>
+                        <video src={previewUrl} controls className="w-full h-full object-contain" style={{ position: 'absolute', inset: 0, zIndex: 10 }} loop autoPlay />
+                        <div style={{ position: 'absolute', bottom: '16px', right: '16px', zIndex: 20 }}>
+                            <button
+                                type="button"
+                                onClick={handleDownloadMp4}
+                                disabled={isConverting}
+                                className="mt-4 px-6 py-3 bg-white text-black hover:bg-zinc-200 rounded-full font-bold text-sm flex items-center gap-2 transition-colors"
+                            >
+                                {isConverting ? <><Loader2 className="animate-spin w-4 h-4" />{lang === 'zh' ? '转码中' : 'Converting'}</> : <><Download className="w-4 h-4" /> {t.download}</>}
+                            </button>
+                        </div>
+                    </>
                 ) : null}
 
                 {videos.length === 0 && !previewUrl && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center text-zinc-600 pointer-events-none">
-                        <Video className="w-12 h-12 mb-4 opacity-20" />
-                        <p>{t.generate}</p>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <Video className="w-12 h-12 opacity-20 mb-3" />
+                        <p className="text-zinc-500 text-sm">{t.generate}</p>
                     </div>
                 )}
             </div>
         </div>
 
-        <div className="w-80 flex-shrink-0 border-l border-zinc-800 bg-zinc-900/30 overflow-y-auto">
+        <div className="w-[330px] flex-shrink-0 border-l border-zinc-800 bg-zinc-900/50 overflow-y-auto">
             
-            <div className="p-6 border-b border-zinc-800">
-                <div className="flex items-center gap-2 mb-4 text-pink-400">
-                    <Clock className="w-4 h-4" />
-                    <h2 className="text-sm font-bold uppercase tracking-wider">{t.syncMode}</h2>
+            <div className="p-3 border-b border-zinc-800">
+                <div className="flex items-center gap-2 mb-3 text-pink-400">
+                    <Clock className="w-3.5 h-3.5" />
+                    <h2 className="text-xs font-bold uppercase">{t.syncMode}</h2>
                 </div>
                 
-                <div className="space-y-4">
+                <div className="space-y-3">
                     <div>
-                        <label className="text-xs text-zinc-500 block mb-2">{t.syncMode}</label>
+                        <label className="text-[10px] text-zinc-500 block mb-1">{t.syncMode}</label>
                         <select 
                             value={beatConfig.mode} 
                             onChange={(e) => setBeatConfig({...beatConfig, mode: e.target.value as any})}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm focus:border-pink-500 outline-none"
+                            className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-xs"
                         >
                             <option value="off">{t.off}</option>
                             <option value="2">{t.beat2}</option>
@@ -1077,26 +1408,26 @@ const App: React.FC = () => {
 
                     <div className="flex gap-2">
                         <div className="flex-1">
-                            <label className="text-xs text-zinc-500 block mb-2">BPM</label>
+                            <label className="text-[10px] text-zinc-500 block mb-1">BPM</label>
                             <input 
                                 type="number" 
                                 value={beatConfig.bpm} 
                                 onChange={(e) => setBeatConfig({...beatConfig, bpm: parseInt(e.target.value)})}
-                                className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm" 
+                                className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-xs" 
                             />
                         </div>
                         <div className="flex-1">
-                            <label className="text-xs text-zinc-500 block mb-2">{t.clipDuration}</label>
+                            <label className="text-[10px] text-zinc-500 block mb-1">{t.clipDuration}</label>
                             <div className="relative">
                                 <input 
                                     type="number" 
                                     value={exportConfig.clipDuration}
                                     disabled={beatConfig.mode !== 'off'} 
                                     onChange={(e) => setExportConfig({...exportConfig, clipDuration: parseFloat(e.target.value)})}
-                                    className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm disabled:opacity-50" 
+                                    className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-xs disabled:opacity-50" 
                                 />
                                 {beatConfig.mode !== 'off' && (
-                                    <div className="absolute inset-y-0 right-3 flex items-center text-xs text-pink-500 font-mono">
+                                    <div className="absolute inset-y-0 right-2 flex items-center text-[10px] text-pink-500 font-mono">
                                         Auto
                                     </div>
                                 )}
@@ -1104,187 +1435,198 @@ const App: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="flex items-start gap-3 p-3 rounded bg-zinc-950 border border-zinc-800">
+                    <div className="flex items-center gap-2 p-2 rounded bg-zinc-950 border border-zinc-800">
                         <button 
                             onClick={() => setIsShuffle(!isShuffle)}
-                            className={`w-10 h-5 rounded-full relative transition-colors mt-0.5 ${isShuffle ? 'bg-pink-600' : 'bg-zinc-700'}`}
+                            className={`w-8 h-4 rounded-full relative transition-colors flex-shrink-0 ${isShuffle ? 'bg-pink-600' : 'bg-zinc-700'}`}
                         >
-                            <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${isShuffle ? 'left-6' : 'left-1'}`} />
+                            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${isShuffle ? 'left-4' : 'left-0.5'}`} />
                         </button>
-                        <div>
-                            <div className="text-sm font-medium flex items-center gap-2">
-                                {t.smartShuffle} <Shuffle className="w-3 h-3 text-zinc-500" />
-                            </div>
-                            <div className="text-xs text-zinc-500">{t.shuffleDesc}</div>
-                        </div>
+                        <span className="text-xs text-zinc-300">{t.smartShuffle}</span>
                     </div>
 
                 </div>
             </div>
 
-            <div className="p-6 border-b border-zinc-800">
-                <div className="flex items-center gap-2 mb-4 text-yellow-400">
-                    <Heading className="w-4 h-4" />
-                    <h2 className="text-sm font-bold uppercase tracking-wider">{t.globalTitle}</h2>
-                </div>
-                
-                <div className="space-y-4">
-                     <textarea 
-                        value={titleConfig.text}
-                        onChange={(e) => setTitleConfig({...titleConfig, text: e.target.value})}
-                        placeholder={t.titleText}
-                        className="w-full h-16 bg-zinc-950 border border-zinc-700 rounded p-3 text-xs mb-2 focus:border-yellow-500 outline-none resize-none"
-                    />
+            <div className="p-3 border-b border-zinc-800">
+                <button 
+                    onClick={() => setIsTitleSubtitleOpen(!isTitleSubtitleOpen)}
+                    className="w-full flex items-center justify-between p-2 bg-zinc-800/50 hover:bg-zinc-800 rounded border border-zinc-700 transition-colors"
+                >
+                    <span className="text-xs font-bold text-zinc-300">标题和字幕</span>
+                    <ChevronDown className={`w-4 h-4 text-zinc-400 transition-transform ${isTitleSubtitleOpen ? 'rotate-180' : ''}`} />
+                </button>
 
-                    <div>
-                        <label className="text-xs text-zinc-500 block mb-2">{t.fontFamily}</label>
-                        <div className="flex gap-2">
-                            <select 
-                                value={titleConfig.style.fontFamily}
-                                onChange={(e) => setTitleConfig(p => ({...p, style: {...p.style, fontFamily: e.target.value}}))}
-                                className="flex-1 bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm"
-                            >
-                                {availableFonts.map(f => <option key={f} value={f}>{f}</option>)}
-                            </select>
-                            <div className="relative">
-                                <input type="file" accept=".ttf,.otf,.woff" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFontUpload} />
-                                <button className="h-full px-3 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700 text-zinc-400" title={t.uploadFont}>
-                                    <Upload className="w-4 h-4" />
-                                </button>
+                {isTitleSubtitleOpen && (
+                    <div className="mt-3 space-y-4">
+                        <div className="bg-yellow-500/5 border border-yellow-500/20 rounded-lg p-3">
+                            <div className="flex items-center gap-2 mb-3 text-yellow-400">
+                                <Heading className="w-4 h-4" />
+                                <h2 className="text-xs font-bold uppercase tracking-wider">{t.globalTitle}</h2>
+                            </div>
+                            
+                            <div className="space-y-3">
+                                 <textarea 
+                                    value={titleConfig.text}
+                                    onChange={(e) => setTitleConfig({...titleConfig, text: e.target.value})}
+                                    placeholder={t.titleText}
+                                    className="w-full h-16 bg-zinc-950 border border-zinc-700 rounded p-3 text-xs mb-2 focus:border-yellow-500 outline-none resize-none"
+                                />
+
+                                <div>
+                                    <label className="text-xs text-zinc-500 block mb-2">{t.fontFamily}</label>
+                                    <div className="flex gap-2">
+                                        <select 
+                                            value={titleConfig.style.fontFamily}
+                                            onChange={(e) => setTitleConfig(p => ({...p, style: {...p.style, fontFamily: e.target.value}}))}
+                                            className="flex-1 bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm"
+                                        >
+                                            {availableFonts.map(f => <option key={f} value={f}>{f}</option>)}
+                                        </select>
+                                        <div className="relative">
+                                            <input type="file" accept=".ttf,.otf,.woff" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleFontUpload} />
+                                            <button className="h-full px-3 bg-zinc-800 border border-zinc-700 rounded hover:bg-zinc-700 text-zinc-400" title={t.uploadFont}>
+                                                <Upload className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                         <label className="text-xs text-zinc-500 block mb-1">Size</label>
+                                         <input 
+                                            type="number" 
+                                            value={titleConfig.style.fontSize}
+                                            onChange={(e) => setTitleConfig(p => ({...p, style: {...p.style, fontSize: parseInt(e.target.value)}}))}
+                                            className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                         <label className="text-xs text-zinc-500 block mb-1">Color</label>
+                                         <input 
+                                            type="color" 
+                                            value={titleConfig.style.color}
+                                            onChange={(e) => setTitleConfig(p => ({...p, style: {...p.style, color: e.target.value}}))}
+                                            className="w-full h-8 bg-transparent cursor-pointer"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-xs text-zinc-500 block mb-2 flex items-center gap-2"><Move className="w-3 h-3"/> {t.position} X / Y</label>
+                                    <div className="space-y-2">
+                                        <input 
+                                            type="range" min="0" max="100" 
+                                            value={titleConfig.style.x}
+                                            onChange={(e) => setTitleConfig(p => ({...p, style: {...p.style, x: parseInt(e.target.value)}}))}
+                                            className="w-full accent-yellow-500 h-1 bg-zinc-700 rounded appearance-none"
+                                            title="X Position"
+                                        />
+                                        <input 
+                                            type="range" min="0" max="100" 
+                                            value={titleConfig.style.y}
+                                            onChange={(e) => setTitleConfig(p => ({...p, style: {...p.style, y: parseInt(e.target.value)}}))}
+                                            className="w-full accent-yellow-500 h-1 bg-zinc-700 rounded appearance-none"
+                                            title="Y Position"
+                                        />
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+
+                        <div className="pt-4 border-t border-zinc-800/50">
+                            <div className="bg-blue-500/5 border border-blue-500/20 rounded-lg p-3 -mx-3">
+                                <div className="flex items-center gap-2 mb-3 text-blue-400">
+                                    <Type className="w-4 h-4" />
+                                    <h2 className="text-xs font-bold uppercase tracking-wider">{t.subtitles}</h2>
+                                </div>
+                                <textarea 
+                                    value={subConfig.text}
+                                    onChange={(e) => setSubConfig({...subConfig, text: e.target.value})}
+                                    placeholder={t.subtitlePlaceholder}
+                                    className="w-full h-32 bg-zinc-950 border border-zinc-700 rounded p-3 text-xs mb-4 focus:border-blue-500 outline-none resize-none"
+                                />
+                                
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-[10px] text-zinc-500 block mb-1">{t.subtitleMode}</label>
+                                        <select 
+                                            value={subConfig.mode} 
+                                            onChange={(e) => setSubConfig({...subConfig, mode: e.target.value as any})}
+                                            className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm"
+                                        >
+                                            <option value="traditional">{t.subModeTrad}</option>
+                                            <option value="beat">{t.subModeBeat}</option>
+                                        </select>
+                                    </div>
+                                    {subConfig.mode === 'beat' && (
+                                        <div>
+                                            <label className="text-xs text-zinc-500 block mb-2">Switch every (beats)</label>
+                                            <div className="flex bg-zinc-950 rounded border border-zinc-700 overflow-hidden">
+                                                {[4, 8, 12, 16].map(b => (
+                                                    <button 
+                                                        key={b}
+                                                        onClick={() => setSubConfig({...subConfig, beatInterval: b})}
+                                                        className={`flex-1 py-1 text-xs ${subConfig.beatInterval === b ? 'bg-blue-600 text-white' : 'hover:bg-zinc-800'}`}
+                                                    >
+                                                        {b}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="mt-4 pt-4 border-t border-zinc-800/50">
+                                    <label className="text-xs font-bold text-zinc-500 mb-2 block">{t.appearance}</label>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <input 
+                                            type="color" 
+                                            value={subConfig.style.color}
+                                            onChange={(e) => setSubConfig(p => ({...p, style: {...p.style, color: e.target.value}}))}
+                                            className="w-full h-8 bg-transparent cursor-pointer"
+                                        />
+                                        <input 
+                                            type="number" 
+                                            value={subConfig.style.fontSize}
+                                            onChange={(e) => setSubConfig(p => ({...p, style: {...p.style, fontSize: parseInt(e.target.value)}}))}
+                                            className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 text-sm"
+                                            title="Font Size"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-2">
-                        <div>
-                             <label className="text-xs text-zinc-500 block mb-1">Size</label>
-                             <input 
-                                type="number" 
-                                value={titleConfig.style.fontSize}
-                                onChange={(e) => setTitleConfig(p => ({...p, style: {...p.style, fontSize: parseInt(e.target.value)}}))}
-                                className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1 text-sm"
-                            />
-                        </div>
-                        <div>
-                             <label className="text-xs text-zinc-500 block mb-1">Color</label>
-                             <input 
-                                type="color" 
-                                value={titleConfig.style.color}
-                                onChange={(e) => setTitleConfig(p => ({...p, style: {...p.style, color: e.target.value}}))}
-                                className="w-full h-8 bg-transparent cursor-pointer"
-                            />
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="text-xs text-zinc-500 block mb-2 flex items-center gap-2"><Move className="w-3 h-3"/> {t.position} X / Y</label>
-                        <div className="space-y-2">
-                            <input 
-                                type="range" min="0" max="100" 
-                                value={titleConfig.style.x}
-                                onChange={(e) => setTitleConfig(p => ({...p, style: {...p.style, x: parseInt(e.target.value)}}))}
-                                className="w-full accent-yellow-500 h-1 bg-zinc-700 rounded appearance-none"
-                                title="X Position"
-                            />
-                            <input 
-                                type="range" min="0" max="100" 
-                                value={titleConfig.style.y}
-                                onChange={(e) => setTitleConfig(p => ({...p, style: {...p.style, y: parseInt(e.target.value)}}))}
-                                className="w-full accent-yellow-500 h-1 bg-zinc-700 rounded appearance-none"
-                                title="Y Position"
-                            />
-                        </div>
-                    </div>
-
-                </div>
+                )}
             </div>
 
-            <div className="p-6 border-b border-zinc-800">
-                <div className="flex items-center gap-2 mb-4 text-blue-400">
-                    <Type className="w-4 h-4" />
-                    <h2 className="text-sm font-bold uppercase tracking-wider">{t.subtitles}</h2>
-                </div>
-                <textarea 
-                    value={subConfig.text}
-                    onChange={(e) => setSubConfig({...subConfig, text: e.target.value})}
-                    placeholder={t.subtitlePlaceholder}
-                    className="w-full h-32 bg-zinc-950 border border-zinc-700 rounded p-3 text-xs mb-4 focus:border-blue-500 outline-none resize-none"
-                />
-                
-                <div className="space-y-4">
-                    <div>
-                        <label className="text-xs text-zinc-500 block mb-2">{t.subtitleMode}</label>
-                        <select 
-                            value={subConfig.mode} 
-                            onChange={(e) => setSubConfig({...subConfig, mode: e.target.value as any})}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm"
-                        >
-                            <option value="traditional">{t.subModeTrad}</option>
-                            <option value="beat">{t.subModeBeat}</option>
-                        </select>
-                    </div>
-                    {subConfig.mode === 'beat' && (
-                        <div>
-                            <label className="text-xs text-zinc-500 block mb-2">Switch every (beats)</label>
-                            <div className="flex bg-zinc-950 rounded border border-zinc-700 overflow-hidden">
-                                {[4, 8, 12, 16].map(b => (
-                                    <button 
-                                        key={b}
-                                        onClick={() => setSubConfig({...subConfig, beatInterval: b})}
-                                        className={`flex-1 py-1 text-xs ${subConfig.beatInterval === b ? 'bg-blue-600 text-white' : 'hover:bg-zinc-800'}`}
-                                    >
-                                        {b}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="mt-4 pt-4 border-t border-zinc-800/50">
-                    <label className="text-xs font-bold text-zinc-500 mb-2 block">{t.appearance}</label>
-                    <div className="grid grid-cols-2 gap-2">
-                        <input 
-                            type="color" 
-                            value={subConfig.style.color}
-                            onChange={(e) => setSubConfig(p => ({...p, style: {...p.style, color: e.target.value}}))}
-                            className="w-full h-8 bg-transparent cursor-pointer"
-                        />
-                        <input 
-                            type="number" 
-                            value={subConfig.style.fontSize}
-                            onChange={(e) => setSubConfig(p => ({...p, style: {...p.style, fontSize: parseInt(e.target.value)}}))}
-                            className="w-full bg-zinc-950 border border-zinc-700 rounded px-2 text-sm"
-                            title="Font Size"
-                        />
-                    </div>
-                </div>
-            </div>
-
-            <div className="p-6">
-                <div className="flex items-center gap-2 mb-4 text-green-400">
-                    <Download className="w-4 h-4" />
-                    <h2 className="text-sm font-bold uppercase tracking-wider">{t.exportSettings}</h2>
+            <div className="p-3">
+                <div className="flex items-center gap-2 mb-3 text-green-400">
+                    <Download className="w-3.5 h-3.5" />
+                    <h2 className="text-xs font-bold uppercase">{t.exportSettings}</h2>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="grid grid-cols-3 gap-1.5 mb-3">
                     {['9:16', '16:9', '1:1', '2:3', '3:4'].map(r => (
                         <button 
                             key={r}
                             onClick={() => setExportConfig({...exportConfig, ratio: r as any})}
-                            className={`py-2 text-xs border rounded ${exportConfig.ratio === r ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
+                            className={`py-1.5 text-[10px] border rounded ${exportConfig.ratio === r ? 'border-green-500 text-green-400 bg-green-500/10' : 'border-zinc-700 text-zinc-400 hover:border-zinc-500'}`}
                         >
                             {r}
                         </button>
                     ))}
                 </div>
-                <div className="space-y-4">
+                <div className="space-y-3">
                     <div>
-                        <label className="text-xs text-zinc-500 flex justify-between mb-1">
+                        <label className="text-[10px] text-zinc-500 flex justify-between mb-1">
                             {t.fadeDuration} <span>{exportConfig.fadeDuration}s</span>
                         </label>
                         <input 
-                            type="range" min="0.1" max="2.0" step="0.1" 
+                            type="range" min="0" max="2.0" step="0.1" 
                             value={exportConfig.fadeDuration}
                             onChange={(e) => setExportConfig({...exportConfig, fadeDuration: parseFloat(e.target.value)})}
                             className="w-full accent-green-500 h-1 bg-zinc-700 rounded appearance-none"
@@ -1296,6 +1638,17 @@ const App: React.FC = () => {
                             type="range" min="0" max="1" step="0.1" 
                             value={exportConfig.bgmVolume}
                             onChange={(e) => setExportConfig({...exportConfig, bgmVolume: parseFloat(e.target.value)})}
+                            className="w-full accent-green-500 h-1 bg-zinc-700 rounded appearance-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs text-zinc-500 flex justify-between mb-1">
+                            {lang === 'zh' ? '视频变速' : 'Playback Speed'} <span>{exportConfig.playbackRate}x</span>
+                        </label>
+                        <input 
+                            type="range" min="0.25" max="2.0" step="0.1" 
+                            value={exportConfig.playbackRate}
+                            onChange={(e) => setExportConfig({...exportConfig, playbackRate: parseFloat(e.target.value)})}
                             className="w-full accent-green-500 h-1 bg-zinc-700 rounded appearance-none"
                         />
                     </div>
